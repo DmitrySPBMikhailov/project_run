@@ -37,3 +37,15 @@ Under the hood, this command executes:
 ```bash
 python manage.py createsuperuser --settings=project_run.settings.local
 ```
+
+## Run Tests
+
+```bash
+make test
+```
+
+Under the hood, this command executes:
+
+```bash
+python manage.py test --settings=project_run.settings.local
+```

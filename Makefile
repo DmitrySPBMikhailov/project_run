@@ -6,3 +6,6 @@ migrate:
 
 createsuperuser:
 	python manage.py createsuperuser --settings=project_run.settings.local
+
+test:
+	python manage.py test --settings=project_run.settings.local
