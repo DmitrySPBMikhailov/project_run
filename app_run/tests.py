@@ -41,3 +41,36 @@ class RunTestCase(APITestCase):
         self.assertEqual(response.data[0]["comment"], self.run1.comment)
         self.assertEqual(response.data[0]["id"], self.run1.id)
         self.assertEqual(response.data[0]["athlete"], self.run1.athlete.id)
+
+
+class UsersTestCase(APITestCase):
+    """
+    Test case for getting Users based on is_staff property and Query Params
+    """
+
+    def setUp(self):
+        self.coach = User.objects.create_user(
+            username="coachuser", password="password123", is_staff=True
+        )
+        self.athlete = User.objects.create_user(
+            username="athleteuser", password="password123"
+        )
+        self.superuser = User.objects.create_superuser(
+            username="my_super", password="password123"
+        )
+        self.url_list_coach = "/api/users/?type=coach"
+        self.url_list_athlete = "/api/users/?type=athlete"
+        self.url_list_random = "/api/users/?type=test"
+        self.url_list_without_params = "/api/users"
+
+    def test_get_coaches(self):
+        response = self.client.get(self.url_list_coach)
+        self.assertEqual(response.data[0]["type"], "coach")
+
+    def test_get_athletes(self):
+        response = self.client.get(self.url_list_athlete)
+        self.assertEqual(response.data[0]["type"], "athlete")
+
+    def test_get_random(self):
+        response = self.client.get(self.url_list_random)
+        self.assertEqual(len(response.data), 2)
