@@ -14,6 +14,18 @@ Under the hood, this command executes:
 python manage.py runserver --settings=project_run.settings.local
 ```
 
+## Make migrations to the DB
+
+```bash
+make makemigrations
+```
+
+Under the hood, this command executes:
+
+```bash
+python manage.py makemigrations --settings=project_run.settings.local
+```
+
 ## Migrate DB
 
 ```bash
