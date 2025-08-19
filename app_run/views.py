@@ -5,7 +5,6 @@ from rest_framework import viewsets
 from .models import Run
 from .serializers import RunSerializer, UserSerializer
 from django.contrib.auth.models import User
-from django.db.models import CharField, Value
 
 
 @api_view(["GET"])
@@ -19,9 +18,11 @@ def get_company_details(request):
 class RunViewSet(viewsets.ModelViewSet):
     """
     A viewset for viewing and editing run instances.
+    There is also additional fetch for User Model via select_related through
+    athlete field.
     """
 
-    queryset = Run.objects.all()
+    queryset = Run.objects.select_related("athlete").all()
     serializer_class = RunSerializer
 
 

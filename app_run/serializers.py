@@ -3,10 +3,24 @@ from .models import Run
 from django.contrib.auth.models import User
 
 
+class AthleteSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Athlete.
+    This serializer is used as nested serializer in RunSerializer
+    """
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "last_name", "first_name"]
+
+
 class RunSerializer(serializers.ModelSerializer):
     """
     Serializer for Run Model
+    There is nested serializer for UserModel
     """
+
+    athlete_data = AthleteSerializer(source="athlete", read_only=True)
 
     class Meta:
         model = Run

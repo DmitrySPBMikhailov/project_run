@@ -41,6 +41,7 @@ class RunTestCase(APITestCase):
         self.assertEqual(response.data[0]["comment"], self.run1.comment)
         self.assertEqual(response.data[0]["id"], self.run1.id)
         self.assertEqual(response.data[0]["athlete"], self.run1.athlete.id)
+        self.assertEqual(response.data[0]["athlete_data"]["id"], self.run1.athlete.id)
 
 
 class UsersTestCase(APITestCase):
