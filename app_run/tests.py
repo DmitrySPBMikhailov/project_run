@@ -75,3 +75,23 @@ class UsersTestCase(APITestCase):
     def test_get_random(self):
         response = self.client.get(self.url_list_random)
         self.assertEqual(len(response.data), 2)
+
+
+class UsersSearch(APITestCase):
+    """
+    Test case for searching by first_name or last_name
+    """
+
+    def setUp(self):
+        self.my_user = User.objects.create_user(
+            username="coachuser",
+            password="password123",
+            first_name="first",
+            last_name="last",
+        )
+        self.url_first = "/api/users/?search=fir"
+        self.url_last = "/api/users/?search=la"
+
+    def test_search(self):
+        response = self.client.get(self.url_first)
+        self.assertEqual(response.data[0]["id"], self.my_user.id)
