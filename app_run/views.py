@@ -3,9 +3,13 @@ from rest_framework.response import Response
 from rest_framework.filters import SearchFilter
 from django.conf import settings
 from rest_framework import viewsets
-from .models import Run
+from rest_framework.views import APIView
+from .models import Run, StatusChoices
 from .serializers import RunSerializer, UserSerializer
 from django.contrib.auth.models import User
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+from django.http import JsonResponse
 
 
 @api_view(["GET"])
@@ -38,6 +42,9 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     Athlete returns users where is_staff is False
     if another argument is provided viewSet returns both
     The viewSet does not show superusers.
+
+    Additionally viewSet allows to search users by first_name
+    or last_name.
     """
 
     queryset = User.objects.exclude(is_superuser=True)
@@ -54,3 +61,42 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             queryset = self.queryset
         return queryset
+
+
+class StartRunView(APIView):
+    """
+    Change status for Run instance to IN_PROGRESS
+    Will return 404 if no object found
+    Will raise 400 bad request if run status if IN_PROGRESS or FINISHED
+    """
+
+    def post(self, request, id):
+        run = get_object_or_404(Run, id=id)
+        if (
+            run.status == StatusChoices.IN_PROGRESS
+            or run.status == StatusChoices.FINISHED
+        ):
+            data = {"status": "bad_request"}
+            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+        run.status = StatusChoices.IN_PROGRESS
+        run.save()
+        data = {"status": "success"}
+        return JsonResponse(data, status=status.HTTP_200_OK)
+
+
+class StopRunView(APIView):
+    """
+    Change status for Run instance to FINISHED
+    Will return 404 if no object found
+    Will raise 400 bad request if run instance has not been started.
+    """
+
+    def post(self, request, id):
+        run = get_object_or_404(Run, id=id)
+        if run.status == StatusChoices.INIT:
+            data = {"status": "bad_request"}
+            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+        run.status = StatusChoices.FINISHED
+        run.save()
+        data = {"message": "This is a successful response.", "status": "success"}
+        return JsonResponse(data, status=status.HTTP_200_OK)

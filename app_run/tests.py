@@ -4,6 +4,8 @@ from rest_framework.test import APITestCase
 from django.conf import settings
 from .models import Run
 from django.contrib.auth.models import User
+from .models import StatusChoices
+from rest_framework import status
 
 
 class CompanyInfoTestCase(APITestCase):
@@ -17,7 +19,7 @@ class CompanyInfoTestCase(APITestCase):
 
     def test_get_info(self):
         response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["company_name"], self.result["company_name"])
         self.assertEqual(response.data["slogan"], self.result["slogan"])
         self.assertEqual(response.data["contacts"], self.result["contacts"])
@@ -37,11 +39,12 @@ class RunTestCase(APITestCase):
 
     def test_get_runs(self):
         response = self.client.get(self.url_list)
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data[0]["comment"], self.run1.comment)
         self.assertEqual(response.data[0]["id"], self.run1.id)
         self.assertEqual(response.data[0]["athlete"], self.run1.athlete.id)
         self.assertEqual(response.data[0]["athlete_data"]["id"], self.run1.athlete.id)
+        self.assertEqual(response.data[0]["status"], StatusChoices.INIT)
 
 
 class UsersTestCase(APITestCase):
@@ -95,3 +98,43 @@ class UsersSearch(APITestCase):
     def test_search(self):
         response = self.client.get(self.url_first)
         self.assertEqual(response.data[0]["id"], self.my_user.id)
+
+
+class ChangeRunStatusTest(APITestCase):
+    """
+    Test case for changing status
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", password="password123"
+        )
+        self.run1 = Run.objects.create(athlete=self.user, comment="cool")
+        self.run_in_progress = Run.objects.create(
+            athlete=self.user, comment="cool", status=StatusChoices.IN_PROGRESS
+        )
+        self.url_start = f"/api/runs/{self.run1.id}/start/"
+        self.url_start_wrong = f"/api/runs/{self.run_in_progress.id}/start/"
+        self.url_stop = f"/api/runs/{self.run_in_progress.id}/stop/"
+        self.url_stop_wrong = f"/api/runs/{self.run1.id}/stop/"
+        self.url_no_run = f"/api/runs/3/start/"
+
+    def test_status_change_no_run(self):
+        response = self.client.post(self.url_no_run)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_status_change_start(self):
+        response = self.client.post(self.url_start)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_status_change_start_wrong(self):
+        response = self.client.post(self.url_start_wrong)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_status_change_stop(self):
+        response = self.client.post(self.url_stop)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_status_wrong_stop(self):
+        response = self.client.post(self.url_stop_wrong)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
