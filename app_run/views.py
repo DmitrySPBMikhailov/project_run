@@ -93,7 +93,7 @@ class StopRunView(APIView):
 
     def post(self, request, id):
         run = get_object_or_404(Run, id=id)
-        if run.status == StatusChoices.INIT:
+        if run.status == StatusChoices.INIT or run.status == StatusChoices.FINISHED:
             data = {"status": "bad_request"}
             return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
         run.status = StatusChoices.FINISHED
