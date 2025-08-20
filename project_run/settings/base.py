@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # libraries
     "rest_framework",
+    "django_filters",
     # users
     "app_run",
 ]
