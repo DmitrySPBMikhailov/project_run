@@ -12,6 +12,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Count, Q
 
 
 @api_view(["GET"])
@@ -59,7 +60,9 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     or last_name.
     """
 
-    queryset = User.objects.exclude(is_superuser=True)
+    queryset = User.objects.exclude(is_superuser=True).annotate(
+        runs_finished_count=Count("run", filter=Q(run__status=StatusChoices.FINISHED))
+    )
     serializer_class = UserSerializer
     filter_backends = [SearchFilter, OrderingFilter]
     search_fields = ["first_name", "last_name"]
