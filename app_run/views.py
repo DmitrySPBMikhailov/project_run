@@ -5,7 +5,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.views import APIView
-from .models import Run, StatusChoices
+from .models import Run, StatusChoices, AthleteInfo
 from .serializers import RunSerializer, UserSerializer
 from django.contrib.auth.models import User
 from rest_framework import status
@@ -118,3 +118,43 @@ class StopRunView(APIView):
         run.save()
         data = {"message": "This is a successful response.", "status": "success"}
         return JsonResponse(data, status=status.HTTP_200_OK)
+
+
+class AthleteInfoView(APIView):
+    """
+    GET or PUT request to see additional info about athlete
+    If AthleteInfo does not exist django will create it.
+    """
+
+    def get(self, request, id):
+        user = get_object_or_404(User, id=id)
+        athlete, created = AthleteInfo.objects.select_related("user_id").get_or_create(
+            user_id=user
+        )
+        data = {"goals": athlete.goals, "weight": athlete.weight, "user_id": user.id}
+        return JsonResponse(data, status=status.HTTP_200_OK)
+
+    def put(self, request, id):
+        user = get_object_or_404(User, id=id)
+        goals = request.data.get("goals")
+        weight = request.data.get("weight")
+        if not goals or not weight:
+            data = {"detail": "Please provide goals and weight"}
+            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            weight = int(weight)
+        except:
+            data = {"detail": "weight is not a number"}
+            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+        if weight < 0 or weight >= 900:
+            data = {"detail": "weight should be greater than 0 and smaller than 900"}
+            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+        athlete, created = AthleteInfo.objects.select_related(
+            "user_id"
+        ).update_or_create(
+            user_id=user,
+            defaults={"goals": goals, "weight": weight, "user_id": user},
+        )
+        data = {"goals": athlete.goals, "weight": athlete.weight, "user_id": user.id}
+        return JsonResponse(data, status=status.HTTP_201_CREATED)
