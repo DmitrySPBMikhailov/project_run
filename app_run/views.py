@@ -146,7 +146,7 @@ class AthleteInfoView(APIView):
         except:
             data = {"detail": "weight is not a number"}
             return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
-        if weight < 0 or weight >= 900:
+        if weight < 1 or weight >= 900:
             data = {"detail": "weight should be greater than 0 and smaller than 900"}
             return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
 
