@@ -48,3 +48,21 @@ class AthleteInfo(models.Model):
 
     def __str__(self):
         return f"{self.user_id}"
+
+
+class Challenge(models.Model):
+    """
+    Created after 10 runs
+    """
+
+    athlete = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="athlete_challenge",
+    )
+    full_name = models.CharField(max_length=32, default="Сделай 10 Забегов!")
+
+    def __str__(self):
+        return f"{self.athlete}"

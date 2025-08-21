@@ -5,8 +5,8 @@ from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.views import APIView
-from .models import Run, StatusChoices, AthleteInfo
-from .serializers import RunSerializer, UserSerializer
+from .models import Run, StatusChoices, AthleteInfo, Challenge
+from .serializers import RunSerializer, UserSerializer, ChallengesSerializer
 from django.contrib.auth.models import User
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -116,8 +116,17 @@ class StopRunView(APIView):
             return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
         run.status = StatusChoices.FINISHED
         run.save()
-        data = {"message": "This is a successful response.", "status": "success"}
+        user = User.objects.get(id=run.athlete.id)
+        if self.has_ten_runs(user):
+            Challenge.objects.create(athlete=user)
+        data = {"status": "success"}
         return JsonResponse(data, status=status.HTTP_200_OK)
+
+    def has_ten_runs(self, user):
+        runs_count = Run.objects.filter(
+            athlete=user, status=StatusChoices.FINISHED
+        ).count()
+        return runs_count >= 10
 
 
 class AthleteInfoView(APIView):
@@ -127,34 +136,57 @@ class AthleteInfoView(APIView):
     """
 
     def get(self, request, id):
-        user = get_object_or_404(User, id=id)
-        athlete, created = AthleteInfo.objects.select_related("user_id").get_or_create(
-            user_id=user
+        athlete, _ = AthleteInfo.objects.select_related("user_id").get_or_create(
+            user_id_id=id
         )
-        data = {"goals": athlete.goals, "weight": athlete.weight, "user_id": user.id}
+        data = {
+            "goals": athlete.goals,
+            "weight": athlete.weight,
+            "user_id": athlete.user_id.id,
+        }
         return JsonResponse(data, status=status.HTTP_200_OK)
 
     def put(self, request, id):
-        user = get_object_or_404(User, id=id)
         goals = request.data.get("goals")
         weight = request.data.get("weight")
+
         if not goals or not weight:
-            data = {"detail": "Please provide goals and weight"}
-            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+            return JsonResponse(
+                {"detail": "Please provide goals and weight"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
             weight = int(weight)
-        except:
-            data = {"detail": "weight is not a number"}
-            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
-        if weight < 1 or weight >= 900:
-            data = {"detail": "weight should be greater than 0 and smaller than 900"}
-            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+            assert 0 < weight < 900
+        except (ValueError, AssertionError):
+            return JsonResponse(
+                {"detail": "weight should be greater than 0 and smaller than 900"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        athlete, created = AthleteInfo.objects.select_related(
-            "user_id"
-        ).update_or_create(
-            user_id=user,
-            defaults={"goals": goals, "weight": weight, "user_id": user},
+        athlete, _ = AthleteInfo.objects.update_or_create(
+            user_id_id=id,
+            defaults={"goals": goals, "weight": weight},
         )
-        data = {"goals": athlete.goals, "weight": athlete.weight, "user_id": user.id}
-        return JsonResponse(data, status=status.HTTP_201_CREATED)
+
+        return JsonResponse(
+            {"goals": athlete.goals, "weight": athlete.weight, "user_id": id},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ChallengesViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Shows all challenges by athletes
+    If params provided /?athlete=<id> this endpoint retrieves challenges by a particular athlete
+    """
+
+    serializer_class = ChallengesSerializer
+
+    def get_queryset(self):
+        queryset = Challenge.objects.all()
+        athlete_id = self.request.query_params.get("athlete")
+        if athlete_id:
+            queryset = queryset.filter(athlete_id=athlete_id)
+        return queryset

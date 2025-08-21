@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Run, StatusChoices
+from .models import Run, Challenge
 from django.contrib.auth.models import User
 
 
@@ -55,3 +55,9 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_type(self, obj):
         return "coach" if obj.is_staff else "athlete"
+
+
+class ChallengesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Challenge
+        fields = ["full_name", "athlete"]

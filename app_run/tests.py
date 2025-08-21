@@ -2,7 +2,7 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from django.conf import settings
-from .models import Run
+from .models import Run, Challenge
 from django.contrib.auth.models import User
 from .models import StatusChoices
 from rest_framework import status
@@ -176,3 +176,29 @@ class GetAthleteInfoTest(APITestCase):
     def test_put_invalid2(self):
         response = self.client.put(self.url, self.invalid_payload2, format="json")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class GetChallengesTest(APITestCase):
+    """
+    Test case for getting Challenges
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", password="password123"
+        )
+        for i in range(9):
+            Run.objects.create(
+                athlete=self.user, comment=f"run {i}", status=StatusChoices.FINISHED
+            )
+        self.run_to_stop = Run.objects.create(
+            athlete=self.user, comment="run 10", status=StatusChoices.IN_PROGRESS
+        )
+        self.url = f"/api/runs/{self.run_to_stop.id}/stop/"
+
+    def test_stop_run_creates_challenge(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.run_to_stop.refresh_from_db()  # make sure that status has been changed
+        self.assertEqual(self.run_to_stop.status, StatusChoices.FINISHED)
+        self.assertTrue(Challenge.objects.filter(athlete=self.user).exists())
