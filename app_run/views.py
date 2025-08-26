@@ -5,8 +5,13 @@ from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.views import APIView
-from .models import Run, StatusChoices, AthleteInfo, Challenge
-from .serializers import RunSerializer, UserSerializer, ChallengesSerializer
+from .models import Run, StatusChoices, AthleteInfo, Challenge, Position
+from .serializers import (
+    RunSerializer,
+    UserSerializer,
+    ChallengesSerializer,
+    PositionSerializer,
+)
 from django.contrib.auth.models import User
 from rest_framework import status
 from django.shortcuts import get_object_or_404
@@ -189,4 +194,27 @@ class ChallengesViewSet(viewsets.ReadOnlyModelViewSet):
         athlete_id = self.request.query_params.get("athlete")
         if athlete_id:
             queryset = queryset.filter(athlete_id=athlete_id)
+        return queryset
+
+
+class PositionViewSet(viewsets.ModelViewSet):
+    """
+    A viewset for viewing and editing position instances.
+    There is validation in the serializer
+    """
+
+    queryset = Position.objects.select_related("run").all()
+    serializer_class = PositionSerializer
+
+    def get_queryset(self):
+        param_type = self.request.query_params.get("run")
+        try:
+            param_type = int(param_type)
+        except:
+            param_type = ""
+
+        if param_type:
+            queryset = self.queryset.filter(run=param_type)
+        else:
+            queryset = self.queryset
         return queryset

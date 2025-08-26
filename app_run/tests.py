@@ -2,9 +2,8 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from django.conf import settings
-from .models import Run, Challenge
+from .models import Run, Challenge, StatusChoices, Position
 from django.contrib.auth.models import User
-from .models import StatusChoices
 from rest_framework import status
 
 
@@ -202,3 +201,69 @@ class GetChallengesTest(APITestCase):
         self.run_to_stop.refresh_from_db()  # make sure that status has been changed
         self.assertEqual(self.run_to_stop.status, StatusChoices.FINISHED)
         self.assertTrue(Challenge.objects.filter(athlete=self.user).exists())
+
+
+class PositionTest(APITestCase):
+    """
+    Test case for Position instances
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", password="password123"
+        )
+        self.run1 = Run.objects.create(
+            athlete=self.user, comment="cool", status=StatusChoices.IN_PROGRESS
+        )
+        self.position1 = Position.objects.create(
+            run=self.run1, latitude="89.0", longitude="179.9"
+        )
+        self.url_delete = f"/api/positions/{self.position1.id}/"
+        self.url_create = "/api/positions/"
+        self.valid_payload = {
+            "run": self.run1.id,
+            "latitude": "89.0",
+            "longitude": "179.9",
+        }
+        self.invalid_latitude = {
+            "run": self.run1.id,
+            "latitude": "90.1",
+            "longitude": "179.9",
+        }
+        self.invalid_longtitude = {
+            "run": self.run1.id,
+            "latitude": "80.1",
+            "longitude": "-180.9",
+        }
+        self.invalid_float_digits = {
+            "run": self.run1.id,
+            "latitude": "80.1",
+            "longitude": "-170.99999",
+        }
+
+    def test_create_position(self):
+        response = self.client.post(self.url_create, self.valid_payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Position.objects.filter(id=response.data["id"]).exists())
+
+    def test_create_wrong_position(self):
+        response = self.client.post(
+            self.url_create, self.invalid_latitude, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_wrong_position2(self):
+        response = self.client.post(
+            self.url_create, self.invalid_longtitude, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_create_wrong_position3(self):
+        response = self.client.post(
+            self.url_create, self.invalid_float_digits, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_delete_position(self):
+        response = self.client.delete(self.url_delete)
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)

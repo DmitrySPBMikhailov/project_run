@@ -66,3 +66,16 @@ class Challenge(models.Model):
 
     def __str__(self):
         return f"{self.athlete}"
+
+
+class Position(models.Model):
+    """
+    Latitude and longitude of the athlete during run
+    """
+
+    run = models.ForeignKey(Run, on_delete=models.CASCADE)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+
+    def __str__(self):
+        return f"{self.run}"
