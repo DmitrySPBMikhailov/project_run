@@ -123,11 +123,16 @@ class StopRunView(APIView):
             return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
         run.status = StatusChoices.FINISHED
         positions = Position.objects.filter(run=run)
-        if len(positions) > 1:
-            start = (positions[0].latitude, positions[0].longitude)
-            finish = (positions[1].latitude, positions[1].longitude)
-            distance = geodesic(start, finish).km
-            run.distance = round(distance, 3)
+        length = len(positions)
+        total = 0
+        if length > 1:
+            for index, position in enumerate(positions):
+                if index == length - 1:
+                    break
+                start = (positions[index].latitude, positions[index].longitude)
+                finish = (positions[index + 1].latitude, positions[index + 1].longitude)
+                total += geodesic(start, finish).km
+            run.distance = round(total, 3)
         run.save()
         user = User.objects.get(id=run.athlete.id)
         if not self.has_challenge(user) and self.has_ten_runs(user):
