@@ -18,6 +18,7 @@ from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q
+from geopy.distance import geodesic
 
 
 @api_view(["GET"])
@@ -112,6 +113,7 @@ class StopRunView(APIView):
     Change status for Run instance to FINISHED
     Will return 404 if no object found
     Will raise 400 bad request if run instance has not been started.
+    If two positions are related to current run it will calculate distance
     """
 
     def post(self, request, id):
@@ -120,9 +122,15 @@ class StopRunView(APIView):
             data = {"status": "bad_request"}
             return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
         run.status = StatusChoices.FINISHED
+        positions = Position.objects.filter(run=run)
+        if len(positions) > 1:
+            start = (positions[0].latitude, positions[0].longitude)
+            finish = (positions[1].latitude, positions[1].longitude)
+            distance = geodesic(start, finish).km
+            run.distance = round(distance, 3)
         run.save()
         user = User.objects.get(id=run.athlete.id)
-        if self.has_ten_runs(user):
+        if not self.has_challenge(user) and self.has_ten_runs(user):
             Challenge.objects.create(athlete=user)
         data = {"status": "success"}
         return JsonResponse(data, status=status.HTTP_200_OK)
@@ -132,6 +140,13 @@ class StopRunView(APIView):
             athlete=user, status=StatusChoices.FINISHED
         ).count()
         return runs_count >= 10
+
+    def has_challenge(self, user):
+        try:
+            assert user.athlete_challenge
+            return True
+        except:
+            return False
 
 
 class AthleteInfoView(APIView):

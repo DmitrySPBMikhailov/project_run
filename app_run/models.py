@@ -23,6 +23,7 @@ class Run(models.Model):
     status = models.CharField(
         max_length=11, choices=StatusChoices.choices, default=StatusChoices.INIT
     )
+    distance = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return (
