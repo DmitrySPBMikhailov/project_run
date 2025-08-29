@@ -5,12 +5,20 @@ from rest_framework.pagination import PageNumberPagination
 from django.conf import settings
 from rest_framework import viewsets
 from rest_framework.views import APIView
-from .models import Run, StatusChoices, AthleteInfo, Challenge, Position
+from .models import (
+    Run,
+    StatusChoices,
+    AthleteInfo,
+    Challenge,
+    Position,
+    CollectibleItem,
+)
 from .serializers import (
     RunSerializer,
     UserSerializer,
     ChallengesSerializer,
     PositionSerializer,
+    CollectibleItemSerializer,
 )
 from django.contrib.auth.models import User
 from rest_framework import status
@@ -252,3 +260,12 @@ class PositionViewSet(viewsets.ModelViewSet):
         else:
             queryset = self.queryset
         return queryset
+
+
+class CollectibleItemViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Shows all Collectible Items
+    """
+
+    serializer_class = CollectibleItemSerializer
+    queryset = CollectibleItem.objects.all()

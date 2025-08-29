@@ -79,3 +79,19 @@ class Position(models.Model):
 
     def __str__(self):
         return f"{self.run}"
+
+
+class CollectibleItem(models.Model):
+    """
+    Items for athletes to be chased
+    """
+
+    name = models.CharField(max_length=128)
+    uid = models.CharField(max_length=128)
+    latitude = models.FloatField()
+    longitude = models.FloatField()
+    picture = models.URLField(max_length=512)
+    value = models.IntegerField()
+
+    def __str__(self):
+        return self.name

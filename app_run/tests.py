@@ -2,7 +2,7 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
 from django.conf import settings
-from .models import Run, Challenge, StatusChoices, Position
+from .models import Run, Challenge, StatusChoices, Position, CollectibleItem
 from django.contrib.auth.models import User
 from rest_framework import status
 
@@ -267,3 +267,25 @@ class PositionTest(APITestCase):
     def test_delete_position(self):
         response = self.client.delete(self.url_delete)
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+
+class CollectibleItemSerializer(APITestCase):
+    """
+    Test for collectible items endpoint
+    """
+
+    def setUp(self):
+        self.item = CollectibleItem.objects.create(
+            name="Champ's T-Shirt",
+            uid="37729fh2",
+            latitude=-34.6090,
+            longitude=-58.3710,
+            picture="https://google.com",
+            value=3,
+        )
+        self.url = "/api/collectible_item/"
+
+    def test_url(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(CollectibleItem.objects.all().exists())

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Run, Challenge, Position, StatusChoices
+from .models import Run, Challenge, Position, StatusChoices, CollectibleItem
 from django.contrib.auth.models import User
 
 
@@ -108,3 +108,13 @@ class PositionSerializer(serializers.ModelSerializer):
             return len(s) - s.find(".") - 1
         else:
             return 0
+
+
+class CollectibleItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Collectible Item
+    """
+
+    class Meta:
+        model = CollectibleItem
+        fields = ["name", "uid", "latitude", "longitude", "picture", "value"]

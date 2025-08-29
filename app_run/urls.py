@@ -9,6 +9,7 @@ from app_run.views import (
     AthleteInfoView,
     ChallengesViewSet,
     PositionViewSet,
+    CollectibleItemViewSet,
 )
 
 router = DefaultRouter()
@@ -16,6 +17,7 @@ router.register("runs", RunViewSet, basename="runs")
 router.register("users", UserViewSet, basename="users")
 router.register("challenges", ChallengesViewSet, basename="challenges")
 router.register("positions", PositionViewSet, basename="positions")
+router.register("collectible_item", CollectibleItemViewSet, basename="collectible")
 
 urlpatterns = [
     path("company_details/", get_company_details, name="get_company_details"),
