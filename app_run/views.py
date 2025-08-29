@@ -136,7 +136,7 @@ class StopRunView(APIView):
         run.save()
         user = User.objects.get(id=run.athlete.id)
         if not self.has_challenge(user) and self.has_ten_runs(user):
-            Challenge.objects.create(athlete=user)
+            Challenge.objects.create(athlete=user, full_name="Сделай 10 Забегов!")
         data = {"status": "success"}
         return JsonResponse(data, status=status.HTTP_200_OK)
 
@@ -147,11 +147,9 @@ class StopRunView(APIView):
         return runs_count >= 10
 
     def has_challenge(self, user):
-        try:
-            assert user.athlete_challenge
-            return True
-        except:
-            return False
+        return Challenge.objects.filter(
+            athlete=user, full_name="Сделай 10 Забегов!"
+        ).exists()
 
 
 class AthleteInfoView(APIView):

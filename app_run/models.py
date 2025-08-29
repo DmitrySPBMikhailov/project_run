@@ -56,12 +56,11 @@ class Challenge(models.Model):
     Created after 10 runs
     """
 
-    athlete = models.OneToOneField(
+    athlete = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        related_name="athlete_challenge",
     )
     full_name = models.CharField(max_length=32, default="Сделай 10 Забегов!")
 
