@@ -161,6 +161,7 @@ class StopRunView(APIView):
         total_distance = Run.objects.filter(athlete=user).aggregate(Sum("distance"))
         if (
             not self.has_challenge(user, self.challenge_name_50_km)
+            and total_distance["distance__sum"]
             and total_distance["distance__sum"] >= 50
         ):
             Challenge.objects.create(athlete=user, full_name=self.challenge_name_50_km)
