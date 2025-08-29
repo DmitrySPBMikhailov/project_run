@@ -17,7 +17,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Sum
 from geopy.distance import geodesic
 
 
@@ -116,6 +116,9 @@ class StopRunView(APIView):
     If two positions are related to current run it will calculate distance
     """
 
+    challenge_name_10_runs = "Сделай 10 Забегов!"
+    challenge_name_50_km = "Пробеги 50 километров!"
+
     def post(self, request, id):
         run = get_object_or_404(Run, id=id)
         if run.status == StatusChoices.INIT or run.status == StatusChoices.FINISHED:
@@ -135,8 +138,13 @@ class StopRunView(APIView):
             run.distance = round(total, 3)
         run.save()
         user = User.objects.get(id=run.athlete.id)
-        if not self.has_challenge(user) and self.has_ten_runs(user):
-            Challenge.objects.create(athlete=user, full_name="Сделай 10 Забегов!")
+        if not self.has_challenge(
+            user, self.challenge_name_10_runs
+        ) and self.has_ten_runs(user):
+            Challenge.objects.create(
+                athlete=user, full_name=self.challenge_name_10_runs
+            )
+        self.calculate_total_distance(user)
         data = {"status": "success"}
         return JsonResponse(data, status=status.HTTP_200_OK)
 
@@ -146,10 +154,17 @@ class StopRunView(APIView):
         ).count()
         return runs_count >= 10
 
-    def has_challenge(self, user):
-        return Challenge.objects.filter(
-            athlete=user, full_name="Сделай 10 Забегов!"
-        ).exists()
+    def has_challenge(self, user, challenge_name):
+        return Challenge.objects.filter(athlete=user, full_name=challenge_name).exists()
+
+    def calculate_total_distance(self, user):
+        total_distance = Run.objects.filter(athlete=user).aggregate(Sum("distance"))
+        if (
+            not self.has_challenge(user, self.challenge_name_50_km)
+            and total_distance["distance__sum"] >= 50
+        ):
+            Challenge.objects.create(athlete=user, full_name=self.challenge_name_50_km)
+        return
 
 
 class AthleteInfoView(APIView):
