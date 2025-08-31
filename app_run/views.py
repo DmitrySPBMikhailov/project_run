@@ -315,7 +315,4 @@ def upload_collectible_items(request):
                 error_colums.append(f"row_{row_idx}[{col_index}]")
             errors.append(error_colums)
 
-    data = {
-        "errors": errors,
-    }
     return JsonResponse(errors, status=status.HTTP_200_OK, safe=False)
