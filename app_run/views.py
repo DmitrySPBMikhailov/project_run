@@ -27,6 +27,7 @@ from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q, Sum
 from geopy.distance import geodesic
+from openpyxl import load_workbook
 
 
 @api_view(["GET"])
@@ -269,3 +270,52 @@ class CollectibleItemViewSet(viewsets.ReadOnlyModelViewSet):
 
     serializer_class = CollectibleItemSerializer
     queryset = CollectibleItem.objects.all()
+
+
+@api_view(["POST"])
+def upload_collectible_items(request):
+    """
+    Allows to upload data from xlsx format
+    """
+    file = request.FILES.get("file")
+    if not file:
+        data = {"error": "Please provide xlsx file"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+    # Проверка и чтение файла
+    workbook = load_workbook(filename=file, data_only=True)
+    sheet = workbook.active
+
+    # Headers of the file
+    headers = [
+        "name",
+        "uid",
+        "value",
+        "latitude",
+        "longitude",
+        "picture",
+    ]
+
+    errors = []
+
+    for row_idx, row in enumerate(
+        sheet.iter_rows(min_row=2, values_only=True), start=2
+    ):
+        # row is tuple now => make it dict
+        item_data = dict(zip(headers, row))
+
+        serializer = CollectibleItemSerializer(data=item_data)
+        if serializer.is_valid():
+            serializer.save()
+        else:
+            # [] for errors inside this row
+            error_colums = []
+            for field in serializer.errors.keys():
+                # we know index in headers list based on the name
+                col_index = headers.index(field)
+                error_colums.append(f"row_{row_idx}[{col_index}]")
+            errors.append(error_colums)
+
+    data = {
+        "errors": errors,
+    }
+    return JsonResponse(data, status=status.HTTP_200_OK, safe=False)

@@ -117,4 +117,11 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CollectibleItem
-        fields = ["name", "uid", "latitude", "longitude", "picture", "value"]
+        fields = [
+            "name",
+            "uid",
+            "value",
+            "latitude",
+            "longitude",
+            "picture",
+        ]
