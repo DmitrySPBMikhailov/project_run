@@ -297,9 +297,7 @@ def upload_collectible_items(request):
 
     errors = []
 
-    for row_idx, row in enumerate(
-        sheet.iter_rows(min_row=2, values_only=True), start=2
-    ):
+    for _, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
         # row is tuple now => make it dict
         item_data = dict(zip(headers, row))
 
@@ -310,9 +308,7 @@ def upload_collectible_items(request):
             # [] for errors inside this row
             error_colums = []
             for field in serializer.errors.keys():
-                # we know index in headers list based on the name
-                col_index = headers.index(field)
-                error_colums.append(f"row_{row_idx}[{col_index}]")
+                error_colums.append(item_data[field])
             errors.append(error_colums)
 
     return JsonResponse(errors, status=status.HTTP_200_OK, safe=False)
