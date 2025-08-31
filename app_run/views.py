@@ -318,4 +318,4 @@ def upload_collectible_items(request):
     data = {
         "errors": errors,
     }
-    return JsonResponse(data, status=status.HTTP_200_OK, safe=False)
+    return JsonResponse(errors, status=status.HTTP_200_OK, safe=False)
