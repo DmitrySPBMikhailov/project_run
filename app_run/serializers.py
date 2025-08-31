@@ -125,3 +125,32 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
             "longitude",
             "picture",
         ]
+
+    def validate_latitude(self, value):
+        if not -90.0 <= value <= 90.0:
+            raise serializers.ValidationError(
+                f"Широта должна находиться в диапазоне [-90.0, 90.0] градусов."
+            )
+        if self.count_decimal_digits(value) > 4:
+            raise serializers.ValidationError(
+                f"Широта может иметь до 4 знаков после запятой."
+            )
+        return value
+
+    def validate_longitude(self, value):
+        if not -180.0 <= value <= 180.0:
+            raise serializers.ValidationError(
+                f" Долгота должна находиться в диапазоне [-180.0, 180.0] градусов."
+            )
+        if self.count_decimal_digits(value) > 4:
+            raise serializers.ValidationError(
+                f"Долгота может иметь до 4 знаков после запятой."
+            )
+        return value
+
+    def count_decimal_digits(self, number):
+        s = str(number)
+        if "." in s:
+            return len(s) - s.find(".") - 1
+        else:
+            return 0
