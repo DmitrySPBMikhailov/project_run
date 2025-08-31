@@ -307,7 +307,7 @@ def upload_collectible_items(request):
         else:
             # [] for errors inside this row
             error_colums = []
-            for field in serializer.errors.keys():
+            for field in serializer.fields:
                 error_colums.append(item_data[field])
             errors.append(error_colums)
 
