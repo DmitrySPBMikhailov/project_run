@@ -92,6 +92,7 @@ class CollectibleItem(models.Model):
     longitude = models.FloatField()
     picture = models.URLField(max_length=512)
     value = models.IntegerField()
+    users = models.ManyToManyField(User, related_name="items", null=True, blank=True)
 
     def __str__(self):
         return self.name

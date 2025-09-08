@@ -19,6 +19,7 @@ from .serializers import (
     ChallengesSerializer,
     PositionSerializer,
     CollectibleItemSerializer,
+    UserSerializerExtended,
 )
 from django.contrib.auth.models import User
 from rest_framework import status
@@ -28,6 +29,8 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q, Sum
 from geopy.distance import geodesic
 from openpyxl import load_workbook
+
+from rest_framework.fields import CurrentUserDefault
 
 
 @api_view(["GET"])
@@ -94,6 +97,11 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             queryset = self.queryset
         return queryset
+
+    def get_serializer_class(self):
+        if "pk" in self.kwargs:
+            return UserSerializerExtended
+        return UserSerializer
 
 
 class StartRunView(APIView):
@@ -261,6 +269,18 @@ class PositionViewSet(viewsets.ModelViewSet):
         else:
             queryset = self.queryset
         return queryset
+
+    def perform_create(self, serializer):
+        instance = serializer.save()
+        start = (instance.latitude, instance.longitude)
+        collectible_items = CollectibleItem.objects.all()
+        run = Run.objects.select_related("athlete").get(id=instance.run.id)
+
+        for item in collectible_items:
+            finish = (item.latitude, item.longitude)
+            total = geodesic(start, finish).km
+            if total < 0.1:
+                item.users.add(User.objects.get(id=run.athlete.id))
 
 
 class CollectibleItemViewSet(viewsets.ReadOnlyModelViewSet):

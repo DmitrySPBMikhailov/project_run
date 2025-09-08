@@ -28,6 +28,27 @@ class RunSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class CollectibleItemSerializer(serializers.ModelSerializer):
+    """
+    Serializer for Collectible Item
+    """
+
+    latitude = serializers.FloatField(validators=[validate_latitude])
+    longitude = serializers.FloatField(validators=[validate_longitude])
+
+    class Meta:
+        model = CollectibleItem
+        fields = [
+            "id",
+            "name",
+            "uid",
+            "value",
+            "latitude",
+            "longitude",
+            "picture",
+        ]
+
+
 class UserSerializer(serializers.ModelSerializer):
     """
     Serializer for User Model
@@ -58,6 +79,13 @@ class UserSerializer(serializers.ModelSerializer):
         return "coach" if obj.is_staff else "athlete"
 
 
+class UserSerializerExtended(UserSerializer):
+    items = CollectibleItemSerializer(many=True, read_only=True)
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ["items"]
+
+
 class ChallengesSerializer(serializers.ModelSerializer):
     class Meta:
         model = Challenge
@@ -83,23 +111,3 @@ class PositionSerializer(serializers.ModelSerializer):
                 f"Статус забега должен быть {StatusChoices.IN_PROGRESS}"
             )
         return value
-
-
-class CollectibleItemSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Collectible Item
-    """
-
-    latitude = serializers.FloatField(validators=[validate_latitude])
-    longitude = serializers.FloatField(validators=[validate_longitude])
-
-    class Meta:
-        model = CollectibleItem
-        fields = [
-            "name",
-            "uid",
-            "value",
-            "latitude",
-            "longitude",
-            "picture",
-        ]
