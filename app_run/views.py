@@ -29,8 +29,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, Q, Sum
 from geopy.distance import geodesic
 from openpyxl import load_workbook
-
-from rest_framework.fields import CurrentUserDefault
+from .utils import validate_latitude, validate_longitude
 
 
 @api_view(["GET"])
@@ -277,10 +276,16 @@ class PositionViewSet(viewsets.ModelViewSet):
         run = Run.objects.select_related("athlete").get(id=instance.run.id)
 
         for item in collectible_items:
-            finish = (item.latitude, item.longitude)
-            total = geodesic(start, finish).km
-            if total < 0.1:
-                item.users.add(User.objects.get(id=run.athlete.id))
+            try:
+                if validate_latitude(item.latitude) and validate_longitude(
+                    item.longitude
+                ):
+                    finish = (item.latitude, item.longitude)
+                    total = geodesic(start, finish).km
+                    if total < 0.1:
+                        item.users.add(User.objects.get(id=run.athlete.id))
+            except:
+                pass
 
 
 class CollectibleItemViewSet(viewsets.ReadOnlyModelViewSet):
