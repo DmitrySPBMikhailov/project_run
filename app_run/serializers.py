@@ -39,7 +39,6 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = CollectibleItem
         fields = [
-            "id",
             "name",
             "uid",
             "value",
@@ -47,6 +46,12 @@ class CollectibleItemSerializer(serializers.ModelSerializer):
             "longitude",
             "picture",
         ]
+
+
+class CollectibleItemSerializerExtended(CollectibleItemSerializer):
+
+    class Meta(CollectibleItemSerializer.Meta):
+        fields = CollectibleItemSerializer.Meta.fields + ["id"]
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -80,7 +85,7 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserSerializerExtended(UserSerializer):
-    items = CollectibleItemSerializer(many=True, read_only=True)
+    items = CollectibleItemSerializerExtended(many=True, read_only=True)
 
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + ["items"]
