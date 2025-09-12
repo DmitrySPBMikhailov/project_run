@@ -105,10 +105,11 @@ class PositionSerializer(serializers.ModelSerializer):
 
     latitude = serializers.FloatField(validators=[validate_latitude])
     longitude = serializers.FloatField(validators=[validate_longitude])
+    date_time = serializers.DateTimeField(format="%Y-%m-%dT%H:%M:%S.%f")
 
     class Meta:
         model = Position
-        fields = ["run", "latitude", "longitude", "id"]
+        fields = ["run", "latitude", "longitude", "id", "date_time"]
 
     def validate_run(self, value):
         if value.status != StatusChoices.IN_PROGRESS:

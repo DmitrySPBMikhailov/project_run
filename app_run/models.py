@@ -24,6 +24,7 @@ class Run(models.Model):
         max_length=11, choices=StatusChoices.choices, default=StatusChoices.INIT
     )
     distance = models.FloatField(null=True, blank=True)
+    run_time_seconds = models.IntegerField(null=True)
 
     def __str__(self):
         return (
@@ -76,6 +77,7 @@ class Position(models.Model):
     run = models.ForeignKey(Run, on_delete=models.CASCADE)
     latitude = models.FloatField()
     longitude = models.FloatField()
+    date_time = models.DateTimeField(null=True, auto_now_add=False)
 
     def __str__(self):
         return f"{self.run}"

@@ -26,7 +26,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Q, Sum, Max, Min
 from geopy.distance import geodesic
 from openpyxl import load_workbook
 from .utils import validate_latitude, validate_longitude
@@ -152,7 +152,16 @@ class StopRunView(APIView):
                 finish = (positions[index + 1].latitude, positions[index + 1].longitude)
                 total += geodesic(start, finish).km
             run.distance = round(total, 3)
+            # find max and min time
+            date_time_stats = Position.objects.aggregate(
+                min_price=Min("date_time"), max_price=Max("date_time")
+            )
+            result_time = date_time_stats["max_price"] - date_time_stats["min_price"]
+            run.run_time_seconds = round(result_time.total_seconds())
+        else:
+            run.run_time_seconds = 0
         run.save()
+
         user = User.objects.get(id=run.athlete.id)
         if not self.has_challenge(
             user, self.challenge_name_10_runs
