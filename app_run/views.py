@@ -153,10 +153,10 @@ class StopRunView(APIView):
                 total += geodesic(start, finish).km
             run.distance = round(total, 3)
             # find max and min time
-            date_time_stats = Position.objects.aggregate(
-                min_price=Min("date_time"), max_price=Max("date_time")
+            date_time_stats = positions.aggregate(
+                min_time=Min("date_time"), max_time=Max("date_time")
             )
-            result_time = date_time_stats["max_price"] - date_time_stats["min_price"]
+            result_time = date_time_stats["max_time"] - date_time_stats["min_time"]
             run.run_time_seconds = round(result_time.total_seconds())
         else:
             run.run_time_seconds = 0
