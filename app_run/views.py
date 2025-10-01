@@ -347,7 +347,7 @@ class PositionViewSet(viewsets.ModelViewSet):
         # speed
         speed = distance_m / delta_t if delta_t > 0 else 0
         instance.speed = round(speed, 2)
-        instance.distance = last_position_obj.distance + distance_m
+        instance.distance = last_position_obj.distance + round(distance_m / 1000, 2)
         instance.save(update_fields=["distance", "speed"])
 
 
