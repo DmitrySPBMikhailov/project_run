@@ -198,15 +198,8 @@ class StopRunView(APIView):
 
             # avarage speed (meters per seconds)
             if run.run_time_seconds > 0:
-                last_position = (
-                    Position.objects.filter(run=run).order_by("-date_time").first()
-                )
-                if last_position and last_position.distance is not None:
-                    total_distance_km = last_position.distance
-                    avg_speed = total_distance_km * 1000 / run.run_time_seconds
-                    run.speed = round(avg_speed, 2)
-                else:
-                    run.speed = 0
+                avg_speed = geodesic(start, finish).meters / result_time.total_seconds()
+                run.speed = round(avg_speed, 2)
             else:
                 run.speed = 0
         else:
