@@ -30,6 +30,7 @@ from django.db.models import Count, Q, Sum, Max, Min, Avg
 from geopy.distance import geodesic
 from openpyxl import load_workbook
 from .utils import validate_latitude, validate_longitude
+from datetime import timedelta
 
 
 @api_view(["GET"])
@@ -134,6 +135,7 @@ class StopRunView(APIView):
 
     challenge_name_10_runs = "Сделай 10 Забегов!"
     challenge_name_50_km = "Пробеги 50 километров!"
+    challenge_name_2_km = "2 километра за 10 минут!"
 
     def post(self, request, id):
         run = get_object_or_404(Run.objects.select_related("athlete"), id=id)
@@ -141,7 +143,13 @@ class StopRunView(APIView):
         self.check_correct_status(run)
         run.status = StatusChoices.FINISHED
         # get total km and run_time_seconds
-        self.get_total_km(run)
+        distance, result_time = self.get_total_km(run)
+        if not self.has_challenge(
+            run.athlete, self.challenge_name_2_km
+        ) and self.check_2km_10min(distance, result_time):
+            Challenge.objects.create(
+                athlete=run.athlete, full_name=self.challenge_name_2_km
+            )
 
         if not self.has_challenge(
             run.athlete, self.challenge_name_10_runs
@@ -204,7 +212,11 @@ class StopRunView(APIView):
             run.distance = 0
             run.speed = 0
         run.save()
-        return 0
+        return total, result_time
+
+    def check_2km_10min(self, distance, result_time_sec):
+        ten_minutes = timedelta(minutes=10)
+        return distance > 2 and result_time_sec < ten_minutes
 
 
 class AthleteInfoView(APIView):
