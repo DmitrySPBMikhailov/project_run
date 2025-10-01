@@ -26,7 +26,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count, Q, Sum, Max, Min, Prefetch
+from django.db.models import Count, Q, Sum, Max, Min, Avg
 from geopy.distance import geodesic
 from openpyxl import load_workbook
 from .utils import validate_latitude, validate_longitude
@@ -197,11 +197,8 @@ class StopRunView(APIView):
             run.run_time_seconds = round(result_time.total_seconds())
 
             # avarage speed (meters per seconds)
-            if run.run_time_seconds > 0:
-                avg_speed = geodesic(start, finish).meters / result_time.total_seconds()
-                run.speed = round(avg_speed, 2)
-            else:
-                run.speed = 0
+            avg_speed = positions.aggregate(avg_speed=Avg("speed"))["avg_speed"]
+            run.speed = round(avg_speed, 2) if avg_speed is not None else 0
         else:
             run.run_time_seconds = 0
             run.distance = 0
