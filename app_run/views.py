@@ -216,7 +216,7 @@ class StopRunView(APIView):
 
     def check_2km_10min(self, distance, result_time_sec):
         ten_minutes = timedelta(minutes=10)
-        return distance > 2 and result_time_sec < ten_minutes
+        return distance >= 2 and result_time_sec <= ten_minutes
 
 
 class AthleteInfoView(APIView):
