@@ -109,7 +109,15 @@ class PositionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Position
-        fields = ["run", "latitude", "longitude", "id", "date_time"]
+        fields = [
+            "run",
+            "latitude",
+            "longitude",
+            "id",
+            "date_time",
+            "speed",
+            "distance",
+        ]
 
     def validate_run(self, value):
         if value.status != StatusChoices.IN_PROGRESS:
