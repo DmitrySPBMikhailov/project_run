@@ -26,7 +26,7 @@ from rest_framework import status
 from django.shortcuts import get_object_or_404
 from django.http import JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Count, Q, Sum, Max, Min
+from django.db.models import Count, Q, Sum, Max, Min, Prefetch
 from geopy.distance import geodesic
 from openpyxl import load_workbook
 from .utils import validate_latitude, validate_longitude
@@ -107,7 +107,7 @@ class StartRunView(APIView):
     """
     Change status for Run instance to IN_PROGRESS
     Will return 404 if no object found
-    Will raise 400 bad request if run status if IN_PROGRESS or FINISHED
+    Will raise 400 bad request if run status is IN_PROGRESS or FINISHED
     """
 
     def post(self, request, id):
@@ -136,40 +136,20 @@ class StopRunView(APIView):
     challenge_name_50_km = "Пробеги 50 километров!"
 
     def post(self, request, id):
-        run = get_object_or_404(Run, id=id)
-        if run.status == StatusChoices.INIT or run.status == StatusChoices.FINISHED:
-            data = {"status": "bad_request"}
-            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+        run = get_object_or_404(Run.objects.select_related("athlete"), id=id)
+        # Check that run status is not INIT nor FINISHED
+        self.check_correct_status(run)
         run.status = StatusChoices.FINISHED
-        positions = Position.objects.filter(run=run)
-        length = len(positions)
-        total = 0
-        if length > 1:
-            for index, position in enumerate(positions):
-                if index == length - 1:
-                    break
-                start = (positions[index].latitude, positions[index].longitude)
-                finish = (positions[index + 1].latitude, positions[index + 1].longitude)
-                total += geodesic(start, finish).km
-            run.distance = round(total, 3)
-            # find max and min time
-            date_time_stats = positions.aggregate(
-                min_time=Min("date_time"), max_time=Max("date_time")
-            )
-            result_time = date_time_stats["max_time"] - date_time_stats["min_time"]
-            run.run_time_seconds = round(result_time.total_seconds())
-        else:
-            run.run_time_seconds = 0
-        run.save()
+        # get total km and run_time_seconds
+        self.get_total_km(run)
 
-        user = User.objects.get(id=run.athlete.id)
         if not self.has_challenge(
-            user, self.challenge_name_10_runs
-        ) and self.has_ten_runs(user):
+            run.athlete, self.challenge_name_10_runs
+        ) and self.has_ten_runs(run.athlete):
             Challenge.objects.create(
-                athlete=user, full_name=self.challenge_name_10_runs
+                athlete=run.athlete, full_name=self.challenge_name_10_runs
             )
-        self.calculate_total_distance(user)
+        self.calculate_total_distance(run.athlete)
         data = {"status": "success"}
         return JsonResponse(data, status=status.HTTP_200_OK)
 
@@ -191,6 +171,43 @@ class StopRunView(APIView):
         ):
             Challenge.objects.create(athlete=user, full_name=self.challenge_name_50_km)
         return
+
+    def check_correct_status(self, run):
+        if run.status == StatusChoices.INIT or run.status == StatusChoices.FINISHED:
+            data = {"status": "bad_request"}
+            return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    def get_total_km(self, run):
+        positions = Position.objects.filter(run=run)
+        length = len(positions)
+        total = 0
+        if length > 1:
+            for index, position in enumerate(positions):
+                if index == length - 1:
+                    break
+                start = (positions[index].latitude, positions[index].longitude)
+                finish = (positions[index + 1].latitude, positions[index + 1].longitude)
+                total += geodesic(start, finish).km
+            run.distance = round(total, 3)
+            # find max and min time
+            date_time_stats = positions.aggregate(
+                min_time=Min("date_time"), max_time=Max("date_time")
+            )
+            result_time = date_time_stats["max_time"] - date_time_stats["min_time"]
+            run.run_time_seconds = round(result_time.total_seconds())
+
+            # avarage speed (meters per seconds)
+            if run.run_time_seconds > 0:
+                avg_speed = (run.distance * 1000) / run.run_time_seconds
+                run.speed = round(avg_speed, 2)
+            else:
+                run.speed = 0
+        else:
+            run.run_time_seconds = 0
+            run.distance = 0
+            run.speed = 0
+        run.save()
+        return 0
 
 
 class AthleteInfoView(APIView):
@@ -259,10 +276,12 @@ class ChallengesViewSet(viewsets.ReadOnlyModelViewSet):
 class PositionViewSet(viewsets.ModelViewSet):
     """
     A viewset for viewing and editing position instances.
-    There is validation in the serializer
+    There is validation in the serializer.
+    If the position of the user is close to collectible items
+    then we add this item to the user as a reward.
     """
 
-    queryset = Position.objects.select_related("run").all()
+    queryset = Position.objects.select_related("run", "run__athlete").all()
     serializer_class = PositionSerializer
 
     def get_queryset(self):
@@ -279,22 +298,57 @@ class PositionViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
+        # Before save we find last position
+        last_position = (
+            Position.objects.filter(run=serializer.validated_data["run"])
+            .order_by("-date_time")
+            .first()
+        )
+
         instance = serializer.save()
-        start = (instance.latitude, instance.longitude)
-        collectible_items = CollectibleItem.objects.all()
-        run = Run.objects.select_related("athlete").get(id=instance.run.id)
+        current_position = (instance.latitude, instance.longitude)
+        athlete = instance.run.athlete
+        # это все бы надо в celery!
+        self.check_collectible_awards(instance, current_position, athlete)
+        self.check_speed(instance, last_position)
+
+    def check_collectible_awards(self, instance, current_position, athlete):
+        # radius of search is 0.1 km. Approx 0.001 degree
+        delta = 0.001
+        lat, lon = instance.latitude, instance.longitude
+
+        # find collectible items that are close to the position of the runner
+        collectible_items = CollectibleItem.objects.filter(
+            latitude__range=(lat - delta, lat + delta),
+            longitude__range=(lon - delta, lon + delta),
+        )
 
         for item in collectible_items:
-            try:
-                if validate_latitude(item.latitude) and validate_longitude(
-                    item.longitude
-                ):
-                    finish = (item.latitude, item.longitude)
-                    total = geodesic(start, finish).km
-                    if total < 0.1:
-                        item.users.add(User.objects.get(id=run.athlete.id))
-            except:
-                pass
+            if validate_latitude(item.latitude) and validate_longitude(item.longitude):
+                desirable = (item.latitude, item.longitude)
+                difference = geodesic(current_position, desirable).km
+                if difference < 0.1:
+                    item.users.add(athlete)
+
+    def check_speed(self, instance, last_position_obj):
+        if not last_position_obj:
+            instance.speed = 0
+            instance.distance = 0
+            instance.save()
+            return 0
+        # calc speed v = s / t
+        # s – distance, а t – time
+        # our task is to get in meters per seconds
+        last_position = (last_position_obj.latitude, last_position_obj.longitude)
+        current_position = (instance.latitude, instance.longitude)
+        distance_m = geodesic(current_position, last_position).meters
+        # time delta
+        delta_t = (instance.date_time - last_position_obj.date_time).total_seconds()
+        # speed
+        speed = distance_m / delta_t if delta_t > 0 else 0
+        instance.speed = round(speed, 2)
+        instance.distance = last_position_obj.distance + distance_m
+        instance.save(update_fields=["distance", "speed"])
 
 
 class CollectibleItemViewSet(viewsets.ReadOnlyModelViewSet):

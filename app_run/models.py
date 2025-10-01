@@ -25,6 +25,10 @@ class Run(models.Model):
     )
     distance = models.FloatField(null=True, blank=True)
     run_time_seconds = models.IntegerField(null=True)
+    speed = models.FloatField(
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return (
@@ -78,6 +82,14 @@ class Position(models.Model):
     latitude = models.FloatField()
     longitude = models.FloatField()
     date_time = models.DateTimeField(null=True, auto_now_add=False)
+    speed = models.FloatField(
+        null=True,
+        blank=True,
+    )
+    distance = models.FloatField(
+        null=True,
+        blank=True,
+    )
 
     def __str__(self):
         return f"{self.run}"

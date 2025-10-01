@@ -14,7 +14,6 @@ def validate_latitude(value):
 
 
 def validate_longitude(value):
-    print(value, "value")
     if not -180.0 <= value <= 180.0:
         raise serializers.ValidationError(
             "Долгота должна находиться в диапазоне [-180.0, 180.0] градусов."
