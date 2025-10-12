@@ -13,6 +13,7 @@ from app_run.views import (
     upload_collectible_items,
     subscribe_to_coach,
     ChallengesListView,
+    rate_coach,
 )
 
 router = DefaultRouter()
@@ -32,5 +33,6 @@ urlpatterns = [
     path(
         "challenges_summary/", ChallengesListView.as_view(), name="challenges_summary"
     ),
+    path("rate_coach/<int:coach_id>/", rate_coach, name="rate_coach"),
     path("", include(router.urls)),
 ]

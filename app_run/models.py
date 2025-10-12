@@ -123,6 +123,7 @@ class Subscribe(models.Model):
         related_name="coach",
     )
     athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name="athlete")
+    rating = models.SmallIntegerField(null=True, blank=True)
 
     def __str__(self):
         return str(f"{self.athlete.last_name} подписан на ${self.coach.last_name}")

@@ -83,7 +83,11 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
 
     queryset = User.objects.exclude(is_superuser=True).annotate(
-        runs_finished_count=Count("run", filter=Q(run__status=StatusChoices.FINISHED))
+        runs_finished_count=Count(
+            "run",
+            filter=Q(run__status=StatusChoices.FINISHED),
+        ),
+        avg_rating=Avg("coach__rating"),
     )
     serializer_class = UserSerializer
     filter_backends = [SearchFilter, OrderingFilter]
@@ -465,3 +469,43 @@ class ChallengesListView(APIView):
 
         serializer = TotalChallengesSerializer(data, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+def rate_coach(request, coach_id):
+    coach = get_object_or_404(User, pk=coach_id)
+    if not coach.is_staff:
+        data = {"info": "Можно дать оценку только тренеру"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    athlete_id = request.data.get("athlete")
+    try:
+        athlete = User.objects.get(pk=athlete_id)
+    except User.DoesNotExist:
+        data = {"info": f"Атлет с ID {athlete_id} не найден"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        rating = int(request.data.get("rating"))
+    except:
+        data = {"info": f"Рейтинг {rating} не является числовым значением"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    if rating > 5 or rating < 1:
+        data = {"info": f"Рейтинг {rating} должен быть от 1 до 5"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    if athlete.is_staff:
+        data = {"info": "Дать оценку тренерам могут только бегуны"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    if not Subscribe.objects.filter(coach=coach, athlete=athlete).exists():
+        data = {"info": "Дать оценку nhtythe может атлет, который на него подписан"}
+
+    subscription = Subscribe.objects.get(coach=coach, athlete=athlete)
+    subscription.rating = rating
+    subscription.save()
+
+    data = {"Новый рейтинг": rating}
+
+    return JsonResponse(data, status=status.HTTP_200_OK)

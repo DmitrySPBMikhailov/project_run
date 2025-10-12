@@ -67,6 +67,7 @@ class UserSerializer(serializers.ModelSerializer):
     runs_finished = serializers.IntegerField(
         source="runs_finished_count", read_only=True
     )
+    rating = serializers.FloatField(source="avg_rating", read_only=True)
 
     class Meta:
         model = User
@@ -78,6 +79,7 @@ class UserSerializer(serializers.ModelSerializer):
             "first_name",
             "type",
             "runs_finished",
+            "rating",
         ]
 
     def get_type(self, obj):
