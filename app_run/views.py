@@ -510,3 +510,55 @@ def rate_coach(request, coach_id):
     data = {"Новый рейтинг": rating}
 
     return JsonResponse(data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def analytics_for_coach(request, coach_id):
+    coach = get_object_or_404(User, pk=coach_id)
+    if not coach.is_staff:
+        data = {"info": "Статистику можно получить только по тренеру"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    # 'longest_run_user': ...  # Id Бегуна который сделал самый длинный забег у этого Тренера
+    # 'longest_run_value': ... # Дистанция самого длинного забега
+    longest_run = (
+        Run.objects.select_related("athlete")
+        .filter(athlete__athlete__coach=coach, distance__isnull=False)
+        .order_by("-distance")
+        .first()
+    )
+
+    # 'total_run_user': ...    # Id Бегуна который пробежал в сумме больше всех у этого Тренера
+    # 'total_run_value': ...   # Дистанция которую в сумме пробежал этот Бегун
+    total_run = (
+        Run.objects.select_related("athlete")
+        .filter(athlete__athlete__coach=coach, distance__isnull=False)
+        .annotate(total_distance=Sum("distance"))
+        .order_by("-total_distance")
+        .first()
+    )
+
+    # 'speed_avg_user': ...    #  Id Бегуна который всреднем бежал быстрее всех
+    # 'speed_avg_value': ...   # Средняя скорость этого Бегуна
+    speed_avg = (
+        Run.objects.select_related("athlete")
+        .filter(athlete__athlete__coach=coach, speed__isnull=False)
+        .annotate(avg_speed=Avg("speed"))
+        .order_by("-avg_speed")
+        .first()
+    )
+
+    if not longest_run and total_run and speed_avg:
+        data = {"info": "У этого тренера пока нет забегов у атлетов"}
+        return JsonResponse(data, status=200)
+
+    data = {
+        "longest_run_user": longest_run.athlete_id,
+        "longest_run_value": longest_run.distance,
+        "total_run_user": total_run.athlete_id,
+        "total_run_value": total_run.total_distance,
+        "speed_avg_user": speed_avg.athlete_id,
+        "speed_avg_value": speed_avg.avg_speed,
+    }
+
+    return JsonResponse(data, status=status.HTTP_200_OK)
