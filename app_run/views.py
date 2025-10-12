@@ -488,7 +488,7 @@ def rate_coach(request, coach_id):
     try:
         rating = int(request.data.get("rating"))
     except:
-        data = {"info": f"Рейтинг {rating} не является числовым значением"}
+        data = {"info": "Рейтинг не является числовым значением"}
         return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
 
     if rating > 5 or rating < 1:
@@ -500,7 +500,8 @@ def rate_coach(request, coach_id):
         return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
 
     if not Subscribe.objects.filter(coach=coach, athlete=athlete).exists():
-        data = {"info": "Дать оценку nhtythe может атлет, который на него подписан"}
+        data = {"info": "Дать оценку тренерам может атлет, который на него подписан"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
 
     subscription = Subscribe.objects.get(coach=coach, athlete=athlete)
     subscription.rating = rating

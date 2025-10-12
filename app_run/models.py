@@ -126,4 +126,4 @@ class Subscribe(models.Model):
     rating = models.SmallIntegerField(null=True, blank=True)
 
     def __str__(self):
-        return str(f"{self.athlete.last_name} подписан на ${self.coach.last_name}")
+        return str(f"{self.athlete.last_name} подписан на {self.coach.last_name}")
