@@ -196,6 +196,7 @@ class StopRunView(APIView):
         positions = Position.objects.filter(run=run)
         length = len(positions)
         total = 0
+        result_time = timedelta(seconds=0)
         if length > 1:
             for index, position in enumerate(positions):
                 if index == length - 1:
