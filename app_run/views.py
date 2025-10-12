@@ -416,7 +416,7 @@ def upload_collectible_items(request):
     return JsonResponse(errors, status=status.HTTP_200_OK, safe=False)
 
 
-@api_view(["POST"])
+@api_view(["POST", "GET"])
 def subscribe_to_coach(request, id):
     coach = get_object_or_404(User, pk=id)
     if not coach.is_staff:
