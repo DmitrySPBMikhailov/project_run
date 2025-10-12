@@ -617,7 +617,7 @@ def analytics_for_coach2(request, coach_id):
 
 
 @api_view(["GET"])
-def analytics_for_coach(request, coach_id):
+def analytics_for_coach3(request, coach_id):
     coach = get_object_or_404(User.objects.only("id", "is_staff"), pk=coach_id)
     if not coach.is_staff:
         return JsonResponse(
@@ -684,4 +684,46 @@ def analytics_for_coach(request, coach_id):
         "speed_avg_user": speed_user.id,
         "speed_avg_value": round(speed_user.speed_avg_value, 2),
     }
+    return JsonResponse(data, status=status.HTTP_200_OK)
+
+
+@api_view(["GET"])
+def analytics_for_coach(request, coach_id):
+    coach = get_object_or_404(User, pk=coach_id)
+    if not coach.is_staff:
+        return JsonResponse(
+            {"info": "Статистику можно получить только по тренеру"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    # Select runs where athlete with the coach
+    runs = (
+        Run.objects.filter(athlete__athlete__coach=coach)
+        .values("athlete")
+        .annotate(
+            total_distance=Sum("distance"),
+            max_distance=Max("distance"),
+            avg_speed=Avg("speed"),
+        )
+    )
+
+    if not runs:
+        return JsonResponse(
+            {"info": "У этого тренера пока нет забегов у атлетов"},
+            status=status.HTTP_200_OK,
+        )
+
+    longest_run = max(runs, key=lambda r: r["max_distance"] or 0)
+    total_run = max(runs, key=lambda r: r["total_distance"] or 0)
+    speed_avg = max(runs, key=lambda r: r["avg_speed"] or 0)
+
+    data = {
+        "longest_run_user": longest_run["athlete"],
+        "longest_run_value": round(longest_run["max_distance"] or 0, 2),
+        "total_run_user": total_run["athlete"],
+        "total_run_value": round(total_run["total_distance"] or 0, 2),
+        "speed_avg_user": speed_avg["athlete"],
+        "speed_avg_value": round(speed_avg["avg_speed"] or 0, 2),
+    }
+
     return JsonResponse(data, status=status.HTTP_200_OK)
