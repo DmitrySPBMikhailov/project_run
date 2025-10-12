@@ -12,6 +12,7 @@ from app_run.views import (
     CollectibleItemViewSet,
     upload_collectible_items,
     subscribe_to_coach,
+    ChallengesListView,
 )
 
 router = DefaultRouter()
@@ -28,5 +29,8 @@ urlpatterns = [
     path("athlete_info/<int:id>/", AthleteInfoView.as_view(), name="athlete_info"),
     path("upload_file/", upload_collectible_items, name="upload_file"),
     path("subscribe_to_coach/<int:id>/", subscribe_to_coach, name="subscribe_to_coach"),
+    path(
+        "challenges_summary/", ChallengesListView.as_view(), name="challenges_summary"
+    ),
     path("", include(router.urls)),
 ]

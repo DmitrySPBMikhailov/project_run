@@ -154,3 +154,23 @@ class PositionSerializer(serializers.ModelSerializer):
                 f"Статус забега должен быть {StatusChoices.IN_PROGRESS}"
             )
         return value
+
+
+class AthleteChallengeSerializer(serializers.ModelSerializer):
+    """
+    Serializer for athelte data used as nested in ChallengesDisplay
+    """
+
+    full_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "full_name"]
+
+    def get_full_name(self, obj):
+        return f"{obj.first_name} {obj.last_name}"
+
+
+class TotalChallengesSerializer(serializers.Serializer):
+    name_to_display = serializers.CharField()
+    athletes = AthleteChallengeSerializer(many=True)

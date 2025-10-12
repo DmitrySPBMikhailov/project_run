@@ -22,6 +22,7 @@ from .serializers import (
     CollectibleItemSerializer,
     AthleteSerializerExtended,
     CoachSerializerExtended,
+    TotalChallengesSerializer,
 )
 from django.contrib.auth.models import User
 from rest_framework import status
@@ -33,6 +34,7 @@ from geopy.distance import geodesic
 from openpyxl import load_workbook
 from .utils import validate_latitude, validate_longitude
 from datetime import timedelta
+from collections import defaultdict
 
 
 @api_view(["GET"])
@@ -443,3 +445,22 @@ def subscribe_to_coach(request, id):
     data = {"Подписка": subscription.id}
 
     return JsonResponse(data, status=status.HTTP_200_OK)
+
+
+class ChallengesListView(APIView):
+
+    def get(self, request):
+        challenges_list = list(Challenge.objects.select_related("athlete").all())
+        challenges_map = defaultdict(list)
+
+        for challenge in challenges_list:
+            if challenge.athlete:
+                challenges_map[challenge.full_name].append(challenge.athlete)
+
+        data = [
+            {"name_to_display": name, "athletes": athletes}
+            for name, athletes in challenges_map.items()
+        ]
+
+        serializer = TotalChallengesSerializer(data, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
