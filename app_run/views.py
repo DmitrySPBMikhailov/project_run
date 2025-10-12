@@ -36,16 +36,12 @@ from django.db.models import (
     Max,
     Min,
     Avg,
-    Subquery,
-    OuterRef,
-    FloatField,
 )
 from geopy.distance import geodesic
 from openpyxl import load_workbook
 from .utils import validate_latitude, validate_longitude
 from datetime import timedelta
 from collections import defaultdict
-from django.db.models.functions import Coalesce
 
 
 @api_view(["GET"])
@@ -520,170 +516,6 @@ def rate_coach(request, coach_id):
 
     data = {"Новый рейтинг": rating}
 
-    return JsonResponse(data, status=status.HTTP_200_OK)
-
-
-@api_view(["GET"])
-def analytics_for_coach2(request, coach_id):
-    coach = get_object_or_404(User, pk=coach_id)
-    if not coach.is_staff:
-        data = {"info": "Статистику можно получить только по тренеру"}
-        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
-
-    # 'longest_run_user': ...  # Id Бегуна который сделал самый длинный забег у этого Тренера
-    # 'longest_run_value': ... # Дистанция самого длинного забега
-    # longest_run = (
-    #     Run.objects.select_related("athlete")
-    #     .filter(athlete__athlete__coach=coach, distance__isnull=False)
-    #     .order_by("-distance")
-    #     .first()
-    # )
-
-    # 'total_run_user': ...    # Id Бегуна который пробежал в сумме больше всех у этого Тренера
-    # 'total_run_value': ...   # Дистанция которую в сумме пробежал этот Бегун
-    # total_run = (
-    #     Run.objects.select_related("athlete")
-    #     .filter(athlete__athlete__coach=coach, distance__isnull=False)
-    #     .annotate(total_distance=Sum("distance"))
-    #     .order_by("-total_distance")
-    #     .first()
-    # )
-
-    # 'speed_avg_user': ...    #  Id Бегуна который всреднем бежал быстрее всех
-    # 'speed_avg_value': ...   # Средняя скорость этого Бегуна
-    # speed_avg = (
-    #     Run.objects.select_related("athlete")
-    #     .filter(athlete__athlete__coach=coach, speed__isnull=False)
-    #     .annotate(avg_speed=Avg("speed"))
-    #     .order_by("-avg_speed")
-    #     .first()
-    # )
-
-    # if not (longest_run or total_run or speed_avg):
-    #     return JsonResponse(
-    #         {"info": "У этого тренера пока нет забегов у атлетов"}, status=200
-    #     )
-
-    # Берём только атлетов, подписанных на этого тренера
-    athletes = User.objects.filter(athlete__coach=coach)
-
-    if not athletes.exists():
-        return JsonResponse(
-            {"info": "У этого тренера пока нет атлетов"},
-            status=status.HTTP_200_OK,
-        )
-
-    athletes = (
-        athletes.annotate(
-            longest_run_value=Max("run__distance"),
-            total_run_value=Sum("run__distance"),
-            speed_avg_value=Avg("run__speed"),
-        )
-        .filter(run__distance__isnull=False)
-        .distinct()
-    )
-
-    if not athletes.exists():
-        return JsonResponse(
-            {"info": "У этого тренера пока нет забегов у атлетов"},
-            status=status.HTTP_200_OK,
-        )
-
-    longest_run_user = max(athletes, key=lambda u: u.longest_run_value or 0)
-
-    total_run_user = max(athletes, key=lambda u: u.total_run_value or 0)
-
-    speed_avg_user = max(athletes, key=lambda u: u.speed_avg_value or 0)
-
-    # data = {
-    #     "longest_run_user": longest_run.athlete_id,
-    #     "longest_run_value": longest_run.distance,
-    #     "total_run_user": total_run.athlete_id,
-    #     "total_run_value": total_run.total_distance,
-    #     "speed_avg_user": speed_avg.athlete_id,
-    #     "speed_avg_value": speed_avg.avg_speed,
-    # }
-
-    data = {
-        "longest_run_user": longest_run_user.id,
-        "longest_run_value": round(longest_run_user.longest_run_value or 0, 3),
-        "total_run_user": total_run_user.id,
-        "total_run_value": round(total_run_user.total_run_value or 0, 3),
-        "speed_avg_user": speed_avg_user.id,
-        "speed_avg_value": round(speed_avg_user.speed_avg_value or 0, 2),
-    }
-
-    return JsonResponse(data, status=status.HTTP_200_OK)
-
-
-@api_view(["GET"])
-def analytics_for_coach3(request, coach_id):
-    coach = get_object_or_404(User.objects.only("id", "is_staff"), pk=coach_id)
-    if not coach.is_staff:
-        return JsonResponse(
-            {"info": "Статистику можно получить только по тренеру"},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # QuerySet по Run, сгруппированный по athlete — для подзапросов
-    runs_by_athlete = Run.objects.filter(athlete=OuterRef("pk"), distance__isnull=False)
-
-    # Subquery для суммы дистанций конкретного user
-    total_subq = (
-        runs_by_athlete.values("athlete")
-        .annotate(total=Sum("distance"))
-        .values("total")
-    )
-    # Subquery для максимальной дистанции (longest single run)
-    max_subq = (
-        runs_by_athlete.values("athlete").annotate(maxd=Max("distance")).values("maxd")
-    )
-    # Subquery для средней скорости (если нужно учитывать speed not null)
-    speed_subq = (
-        Run.objects.filter(athlete=OuterRef("pk"), speed__isnull=False)
-        .values("athlete")
-        .annotate(avgs=Avg("speed"))
-        .values("avgs")
-    )
-
-    # Берём только атлетов, которые подписаны на coach
-    athletes = (
-        User.objects.filter(
-            athlete__coach=coach
-        )  # <-- связь через Subscribe (related_name="athlete")
-        .annotate(
-            total_run_value=Coalesce(
-                Subquery(total_subq, output_field=FloatField()), 0.0
-            ),
-            longest_run_value=Coalesce(
-                Subquery(max_subq, output_field=FloatField()), 0.0
-            ),
-            speed_avg_value=Coalesce(
-                Subquery(speed_subq, output_field=FloatField()), 0.0
-            ),
-        )
-        .distinct()
-    )
-
-    if not athletes.exists():
-        return JsonResponse(
-            {"info": "У этого тренера пока нет забегов у атлетов"},
-            status=status.HTTP_200_OK,
-        )
-
-    # Выбираем топы по аннотированным полям
-    longest_user = max(athletes, key=lambda u: u.longest_run_value or 0)
-    total_user = max(athletes, key=lambda u: u.total_run_value or 0)
-    speed_user = max(athletes, key=lambda u: u.speed_avg_value or 0)
-
-    data = {
-        "longest_run_user": longest_user.id,
-        "longest_run_value": round(longest_user.longest_run_value, 3),
-        "total_run_user": total_user.id,
-        "total_run_value": round(total_user.total_run_value, 3),
-        "speed_avg_user": speed_user.id,
-        "speed_avg_value": round(speed_user.speed_avg_value, 2),
-    }
     return JsonResponse(data, status=status.HTTP_200_OK)
 
 
