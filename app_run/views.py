@@ -521,49 +521,85 @@ def analytics_for_coach(request, coach_id):
 
     # 'longest_run_user': ...  # Id Бегуна который сделал самый длинный забег у этого Тренера
     # 'longest_run_value': ... # Дистанция самого длинного забега
-    longest_run = (
-        Run.objects.select_related("athlete")
-        .filter(athlete__athlete__coach=coach, distance__isnull=False)
-        .order_by("-distance")
-        .first()
-    )
+    # longest_run = (
+    #     Run.objects.select_related("athlete")
+    #     .filter(athlete__athlete__coach=coach, distance__isnull=False)
+    #     .order_by("-distance")
+    #     .first()
+    # )
 
     # 'total_run_user': ...    # Id Бегуна который пробежал в сумме больше всех у этого Тренера
     # 'total_run_value': ...   # Дистанция которую в сумме пробежал этот Бегун
-    total_run = (
-        Run.objects.select_related("athlete")
-        .filter(athlete__athlete__coach=coach, distance__isnull=False)
-        .annotate(total_distance=Sum("distance"))
-        .order_by("-total_distance")
-        .first()
-    )
+    # total_run = (
+    #     Run.objects.select_related("athlete")
+    #     .filter(athlete__athlete__coach=coach, distance__isnull=False)
+    #     .annotate(total_distance=Sum("distance"))
+    #     .order_by("-total_distance")
+    #     .first()
+    # )
 
     # 'speed_avg_user': ...    #  Id Бегуна который всреднем бежал быстрее всех
     # 'speed_avg_value': ...   # Средняя скорость этого Бегуна
-    speed_avg = (
-        Run.objects.select_related("athlete")
-        .filter(athlete__athlete__coach=coach, speed__isnull=False)
-        .annotate(avg_speed=Avg("speed"))
-        .order_by("-avg_speed")
-        .first()
-    )
+    # speed_avg = (
+    #     Run.objects.select_related("athlete")
+    #     .filter(athlete__athlete__coach=coach, speed__isnull=False)
+    #     .annotate(avg_speed=Avg("speed"))
+    #     .order_by("-avg_speed")
+    #     .first()
+    # )
 
-    # if not longest_run and total_run and speed_avg:
-    #     data = {"info": "У этого тренера пока нет забегов у атлетов"}
-    #     return JsonResponse(data, status=200)
+    # if not (longest_run or total_run or speed_avg):
+    #     return JsonResponse(
+    #         {"info": "У этого тренера пока нет забегов у атлетов"}, status=200
+    #     )
 
-    if not (longest_run or total_run or speed_avg):
+    # Берём только атлетов, подписанных на этого тренера
+    athletes = User.objects.filter(athlete__coach=coach)
+
+    if not athletes.exists():
         return JsonResponse(
-            {"info": "У этого тренера пока нет забегов у атлетов"}, status=200
+            {"info": "У этого тренера пока нет атлетов"},
+            status=status.HTTP_200_OK,
         )
 
+    athletes = (
+        athletes.annotate(
+            longest_run_value=Max("run__distance"),
+            total_run_value=Sum("run__distance"),
+            speed_avg_value=Avg("run__speed"),
+        )
+        .filter(run__distance__isnull=False)
+        .distinct()
+    )
+
+    if not athletes.exists():
+        return JsonResponse(
+            {"info": "У этого тренера пока нет забегов у атлетов"},
+            status=status.HTTP_200_OK,
+        )
+
+    longest_run_user = max(athletes, key=lambda u: u.longest_run_value or 0)
+
+    total_run_user = max(athletes, key=lambda u: u.total_run_value or 0)
+
+    speed_avg_user = max(athletes, key=lambda u: u.speed_avg_value or 0)
+
+    # data = {
+    #     "longest_run_user": longest_run.athlete_id,
+    #     "longest_run_value": longest_run.distance,
+    #     "total_run_user": total_run.athlete_id,
+    #     "total_run_value": total_run.total_distance,
+    #     "speed_avg_user": speed_avg.athlete_id,
+    #     "speed_avg_value": speed_avg.avg_speed,
+    # }
+
     data = {
-        "longest_run_user": longest_run.athlete_id,
-        "longest_run_value": longest_run.distance,
-        "total_run_user": total_run.athlete_id,
-        "total_run_value": total_run.total_distance,
-        "speed_avg_user": speed_avg.athlete_id,
-        "speed_avg_value": speed_avg.avg_speed,
+        "longest_run_user": longest_run_user.id,
+        "longest_run_value": round(longest_run_user.longest_run_value or 0, 3),
+        "total_run_user": total_run_user.id,
+        "total_run_value": round(total_run_user.total_run_value or 0, 3),
+        "speed_avg_user": speed_avg_user.id,
+        "speed_avg_value": round(speed_avg_user.speed_avg_value or 0, 2),
     }
 
     return JsonResponse(data, status=status.HTTP_200_OK)
