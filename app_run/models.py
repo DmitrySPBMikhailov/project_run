@@ -110,3 +110,19 @@ class CollectibleItem(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Subscribe(models.Model):
+    """
+    Athelete can subscribe on coach.
+    """
+
+    coach = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="coach",
+    )
+    athlete = models.ForeignKey(User, on_delete=models.CASCADE, related_name="athlete")
+
+    def __str__(self):
+        return str(f"{self.athlete.last_name} подписан на ${self.coach.last_name}")

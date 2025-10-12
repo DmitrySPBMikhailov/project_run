@@ -12,6 +12,7 @@ from .models import (
     Challenge,
     Position,
     CollectibleItem,
+    Subscribe,
 )
 from .serializers import (
     RunSerializer,
@@ -19,7 +20,8 @@ from .serializers import (
     ChallengesSerializer,
     PositionSerializer,
     CollectibleItemSerializer,
-    UserSerializerExtended,
+    AthleteSerializerExtended,
+    CoachSerializerExtended,
 )
 from django.contrib.auth.models import User
 from rest_framework import status
@@ -100,7 +102,10 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_serializer_class(self):
         if "pk" in self.kwargs:
-            return UserSerializerExtended
+            user = self.get_object()
+            if user.is_staff:
+                return CoachSerializerExtended
+            return AthleteSerializerExtended
         return UserSerializer
 
 
@@ -409,3 +414,32 @@ def upload_collectible_items(request):
             errors.append(error_colums)
 
     return JsonResponse(errors, status=status.HTTP_200_OK, safe=False)
+
+
+@api_view(["POST"])
+def subscribe_to_coach(request, id):
+    coach = get_object_or_404(User, pk=id)
+    if not coach.is_staff:
+        data = {"info": "Можно подписаться только на тренера"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    athlete_id = request.data.get("athlete")
+    try:
+        athlete = User.objects.get(pk=athlete_id)
+    except User.DoesNotExist:
+        data = {"info": f"Атлет с ID {athlete_id} не найден"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    if athlete.is_staff:
+        data = {"info": "На тренера могут подписаться только бегуны"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    if Subscribe.objects.filter(coach=coach, athlete=athlete).exists():
+        data = {"info": "Подписку можно оформить только 1 раз"}
+        return JsonResponse(data, status=status.HTTP_400_BAD_REQUEST)
+
+    subscription = Subscribe.objects.create(coach=coach, athlete=athlete)
+
+    data = {"Подписка": subscription.id}
+
+    return JsonResponse(data, status=status.HTTP_200_OK)

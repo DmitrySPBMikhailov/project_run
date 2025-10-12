@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Run, Challenge, Position, StatusChoices, CollectibleItem
+from .models import Run, Challenge, Position, StatusChoices, CollectibleItem, Subscribe
 from django.contrib.auth.models import User
 from .utils import validate_latitude, validate_longitude
 
@@ -89,6 +89,35 @@ class UserSerializerExtended(UserSerializer):
 
     class Meta(UserSerializer.Meta):
         fields = UserSerializer.Meta.fields + ["items"]
+
+
+class AthleteSerializerExtended(UserSerializerExtended):
+    """For athlete — add field coach"""
+
+    coach = serializers.SerializerMethodField()
+
+    class Meta(UserSerializerExtended.Meta):
+        fields = UserSerializerExtended.Meta.fields + ["coach"]
+
+    def get_coach(self, obj):
+        subscription = Subscribe.objects.filter(athlete=obj).first()
+        return subscription.coach.id if subscription else None
+
+
+class CoachSerializerExtended(UserSerializerExtended):
+    """
+    For coach - add list id of athletes
+    """
+
+    athletes = serializers.SerializerMethodField()
+
+    class Meta(UserSerializerExtended.Meta):
+        fields = UserSerializerExtended.Meta.fields + ["athletes"]
+
+    def get_athletes(self, obj):
+        return list(
+            Subscribe.objects.filter(coach=obj).values_list("athlete_id", flat=True)
+        )
 
 
 class ChallengesSerializer(serializers.ModelSerializer):
