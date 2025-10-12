@@ -548,9 +548,14 @@ def analytics_for_coach(request, coach_id):
         .first()
     )
 
-    if not longest_run and total_run and speed_avg:
-        data = {"info": "У этого тренера пока нет забегов у атлетов"}
-        return JsonResponse(data, status=200)
+    # if not longest_run and total_run and speed_avg:
+    #     data = {"info": "У этого тренера пока нет забегов у атлетов"}
+    #     return JsonResponse(data, status=200)
+
+    if not (longest_run or total_run or speed_avg):
+        return JsonResponse(
+            {"info": "У этого тренера пока нет забегов у атлетов"}, status=200
+        )
 
     data = {
         "longest_run_user": longest_run.athlete_id,
